@@ -1,0 +1,137 @@
+# import numpy as np
+# import matplotlib.pyplot as plt
+# import pandas as pd
+# import seaborn as sns
+# from sklearn.preprocessing import StandardScaler, OneHotEncoder
+# from sklearn.compose import ColumnTransformer
+# from sklearn.pipeline import Pipeline
+# from sklearn.model_selection import train_test_split
+# from keras.models import Sequential
+# from keras.layers import Dense, Dropout
+# from sklearn.metrics import confusion_matrix
+# sns.set()
+# dataset = pd.read_csv("./Churn_Modelling.csv")
+# dataset.head()
+# #Customer ID and Surname would not be relevant as features
+# X_columns = dataset.columns.tolist()[2:12]
+# Y_columns = dataset.columns.tolist()[-1:]
+# print(X_columns)
+# print(Y_columns)
+# X = dataset[X_columns].values
+# Y = dataset[Y_columns].values
+# #We need to encode categorical variables such as geography and gender
+# from sklearn.preprocessing import LabelEncoder
+# X_column_transformer = LabelEncoder()
+# X[:, 1] = X_column_transformer.fit_transform(X[:, 1])
+# #Lets Encode gender now
+# X[:, 2] = X_column_transformer.fit_transform(X[:, 2])
+# pipeline = Pipeline(
+#     [
+#         ('Categorizer', ColumnTransformer(
+#             [
+#                 ("Gender Label Encoder", OneHotEncoder(categories = 'auto', drop = 'first'), [2]),
+#                 ("Geography Label Encoder", OneHotEncoder(categories = 'auto', drop = 'first'), [1])
+#             ],
+#             remainder = 'passthrough', n_jobs = 1)),
+#         ('Normalizer', StandardScaler())
+#     ]
+# )
+# #Standardize the features
+# X = pipeline.fit_transform(X)
+# X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size = 0.2, random_state = 0)
+# classifier = Sequential()
+# classifier.add(Dense(6, activation = 'relu', input_shape = (X_train.shape[1], )))
+# classifier.add(Dropout(rate = 0.1))
+# classifier.add(Dense(6, activation = 'relu'))
+# classifier.add(Dropout(rate = 0.1))
+# classifier.add(Dense(1, activation = 'sigmoid'))
+# classifier.summary()
+# classifier.compile(optimizer = 'adam', loss = 'binary_crossentropy', metrics = ['accuracy'])
+# history = classifier.fit(X_train, y_train, batch_size = 32, epochs = 200, validation_split = 0.1, verbose = 2)
+# y_pred = classifier.predict(X_test)
+# print(y_pred[:5])
+# y_pred = (y_pred > 0.5).astype(int)
+# print(y_pred[:5])
+# cm = confusion_matrix(y_test, y_pred)
+# print(cm)
+# print(((cm[0][0] + cm[1][1])* 100) / len(y_test), '% of data was classified correctly')
+
+import numpy as np
+import matplotlib.pyplot as plt
+import pandas as pd
+import seaborn as sns
+from sklearn.preprocessing import StandardScaler, OneHotEncoder, LabelEncoder
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.model_selection import train_test_split
+from keras.models import Sequential
+from keras.layers import Dense, Dropout
+from sklearn.metrics import confusion_matrix
+
+# Set seaborn style
+sns.set()
+
+# Load the dataset
+dataset = pd.read_csv("Churn_Modelling.csv")
+
+# Define the columns for features and target
+X_columns = dataset.columns[3:13]  # Exclude CustomerId and Surname
+Y_columns = dataset.columns[-1]
+
+# Extract features and target
+X = dataset[X_columns]
+Y = dataset[Y_columns]
+
+# Apply Label Encoding to 'Geography' and 'Gender'
+label_encoder = LabelEncoder()
+X['Geography'] = label_encoder.fit_transform(X['Geography'])
+X['Gender'] = label_encoder.fit_transform(X['Gender'])
+
+# Create a list of categorical column indices
+categorical_columns = [1, 2]  # Assuming columns 1 (Geography) and 2 (Gender) are categorical
+
+# Create a ColumnTransformer for preprocessing
+preprocessor = ColumnTransformer(
+    transformers=[
+        ('categorical', OneHotEncoder(drop='first'), categorical_columns),
+        ('scaler', StandardScaler(), list(set(range(10)) - set(categorical_columns)))
+    ],
+    remainder='passthrough'
+)
+
+# Create a pipeline for data preprocessing
+pipeline = Pipeline([
+    ('preprocessor', preprocessor)
+])
+
+# Preprocess the features
+X = pipeline.fit_transform(X)
+
+# Split the data into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=0.2, random_state=0)
+
+# Build the neural network model
+classifier = Sequential()
+classifier.add(Dense(6, activation='relu', input_dim=X_train.shape[1]))
+classifier.add(Dropout(0.1))
+classifier.add(Dense(6, activation='relu'))
+classifier.add(Dropout(0.1))
+classifier.add(Dense(1, activation='sigmoid'))
+
+# Compile the model
+classifier.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+
+# Train the model
+history = classifier.fit(X_train, y_train, batch_size=32, epochs=200, validation_split=0.1, verbose=2)
+
+# Make predictions
+y_pred = classifier.predict(X_test)
+y_pred = (y_pred > 0.5).astype(int)
+
+# Calculate and print the confusion matrix
+cm = confusion_matrix(y_test, y_pred)
+print(cm)
+
+# Calculate and print the accuracy
+accuracy = (cm[0, 0] + cm[1, 1]) / len(y_test)
+print(f"Accuracy: {accuracy * 100:.2f}%")
